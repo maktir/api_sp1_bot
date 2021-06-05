@@ -2,19 +2,21 @@ import time
 import requests
 import telegram
 import logging
+import logging.handlers
 import os
+import sys
 from dotenv import load_dotenv
 from requests.exceptions import ConnectionError
 
 load_dotenv()
 
-API_URL = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
 PRAKTIKUM_TOKEN = os.getenv('PRAKTIKUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-HEADERS = {'Authorization': f'OAuth {PRAKTIKUM_TOKEN}'}
+API_URL = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
 RESULTS = {
-    'reviewing': 'Работа была отправлена на ревью.',
+    'reviewing': ('Ревьюер смотрит Вашу работу.'
+                  'Ух, сейчас что-то будет...'),
     'rejected': ('У вас проверили работу "{hw_name}"!'
                  'К сожалению в работе нашлись ошибки.'),
     'approved': ('У вас проверили работу "{hw_name}"!'
@@ -24,23 +26,29 @@ RESULTS = {
 logging.basicConfig(
     level=logging.DEBUG,
     filename='homework.log',
-    filemode='w',
+    filemode='a',
+    format='%(asctime)s, %(levelname)s, %(name)s, %(message)s',
 )
+logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
 
 
 def parse_homework_status(homework):
-    homework_name = homework['homework_name']
+    try:
+        homework_name = homework['homework_name']
+    except KeyError:
+        raise KeyError('Работы с таким именем отсутствуют')
     if homework['status'] not in RESULTS:
         raise ValueError('Неизвестный статус работы')
     return RESULTS[homework['status']].format(hw_name=homework_name)
 
 
 def get_homework_statuses(current_timestamp):
+    header = {'Authorization': f'OAuth {PRAKTIKUM_TOKEN}'}
     params = {'from_date': current_timestamp}
     try:
         homework_statuses = requests.get(
             API_URL,
-            headers=HEADERS,
+            headers=header,
             params=params,
         )
     except ConnectionError:
@@ -73,7 +81,7 @@ def main():
         except Exception as error:
             message = f'Бот столкнулся с ошибкой: {error}'
             logging.error(message, exc_info=True)
-            send_message(message)
+            send_message(message, bot_client)
 
 
 if __name__ == '__main__':
