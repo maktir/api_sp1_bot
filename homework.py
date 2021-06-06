@@ -15,11 +15,11 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 API_URL = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
 RESULTS = {
-    'reviewing': ('Ревьюер смотрит Вашу работу.'
+    'reviewing': ('Ревьюер смотрит Вашу работу. '
                   'Ух, сейчас что-то будет...'),
-    'rejected': ('У вас проверили работу "{hw_name}"!'
+    'rejected': ('У вас проверили работу "{hw_name}"! '
                  'К сожалению в работе нашлись ошибки.'),
-    'approved': ('У вас проверили работу "{hw_name}"!'
+    'approved': ('У вас проверили работу "{hw_name}"! '
                  'Ревьюеру всё понравилось, '
                  'можно приступать к следующему уроку.'),
 }
@@ -36,10 +36,14 @@ def parse_homework_status(homework):
     try:
         homework_name = homework['homework_name']
     except KeyError:
-        raise KeyError('Работы с таким именем отсутствуют')
-    if homework['status'] not in RESULTS:
-        raise ValueError('Неизвестный статус работы')
-    return RESULTS[homework['status']].format(hw_name=homework_name)
+        logging.error(KeyError)
+        raise KeyError('Работы с таким именем отсутствуют.')
+    try:
+        RESULTS.get(homework['status'])
+        return RESULTS[homework['status']].format(hw_name=homework_name)
+    except ValueError:
+        logging.error(ValueError)
+        raise ValueError('Неизвестный статус работы.')
 
 
 def get_homework_statuses(current_timestamp):
@@ -52,7 +56,8 @@ def get_homework_statuses(current_timestamp):
             params=params,
         )
     except ConnectionError:
-        raise ConnectionError('Ошибка соединения')
+        logging.error(ConnectionError)
+        raise ConnectionError('Ошибка соединения.')
     return homework_statuses.json()
 
 
@@ -65,7 +70,7 @@ def send_message(message, bot_client):
 
 def main():
     bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
-    logging.debug('Бот запущен')
+    logging.debug('Бот запущен.')
     current_timestamp = int(time.time())
     while True:
         try:
